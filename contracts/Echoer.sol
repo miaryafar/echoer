@@ -1,3 +1,16 @@
+// everything on chain
+// start from first echo.
+// there is no way back. that echo emit for evere ETH. and etherScan or your node.
+// we use etherScan first Dapp used. as trusted app. connect your wallet with etherScan.
+// then go to Write Contract and send echo("Hi.").
+// the next 17 charecter is free of eth charge. and next 32 characters cost extra.
+// always you can find your text. if you know your wallet address and Echoer address.
+
+// what is your first echo? it can introduce your wall's activity. it is easier to get to know you through your first echo.
+// see other echoes in events of Echoer or that transaction or Echoer Walls.
+// echo words can be on constructor, your mind, on internet, on paper, on stone, on chain, ... or on Echoer.
+
+
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.36;
 
@@ -89,6 +102,13 @@ import {EchoerWall} from "./EchoerWall.sol";
 /// non-transferable and non-economic. There is no owner, no admin
 /// function, and no upgrade path.
 contract Echoer is IEchoer {
+
+    /// @notice Post a message as Echoer on Echoer's wall.
+    ///         No personal wall is needed, and your own echoId is not used.
+    function echoAsEchoer(string calldata message) external {
+        this.echo(message);
+    }
+
     using Clones for address;
     using EchoerInfoLib for EchoerInfo;
 
