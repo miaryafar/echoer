@@ -10,7 +10,7 @@ Use these settings for the main Echoer contracts:
 | --- | --- |
 | Solidity compiler | **0.8.36** |
 | Optimizer | **Enabled** |
-| Optimizer runs | **100** |
+| Optimizer runs | **65** |
 
 Optimizer settings fragment for Solidity Standard JSON:
 
@@ -19,7 +19,7 @@ Optimizer settings fragment for Solidity Standard JSON:
   "settings": {
     "optimizer": {
       "enabled": true,
-      "runs": 100
+      "runs": 65
     }
   }
 }
