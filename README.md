@@ -1,138 +1,199 @@
 # Echoer
 
-## A public, human-readable communication layer for every Ethereum address
+> **A public, human-readable communication layer for every Ethereum address.**
 
-Echoer is an on-chain communication protocol that gives every Ethereum address a permanent public Wall.
+Echoer is an on-chain communication protocol that gives every Ethereum address a permanent public **Wall**.
 
-Every address has its own deterministic Wall, an immutable space where Echoes can be published. An Echo is a human-readable message attached to an address and stored permanently on-chain.
+Every address has its own deterministic Wall: an immutable space where **Echoes** can be published and permanently recorded on-chain. An Echo is a human-readable message attached to an address.
 
-Unlike traditional messaging systems, Echoer does not require accounts, servers, or external identities. The Ethereum address itself becomes the destination. Both externally owned accounts and smart contracts can participate as senders and receivers.
+Unlike traditional messaging systems, Echoer requires no accounts, servers, or external identities. The Ethereum address itself becomes the destination. Both externally owned accounts and smart contracts can participate as senders and receivers.
+
+<br>
 
 ---
+<br>
 
-# Public by default
+## At a glance
+
+| Concept | Purpose |
+| --- | --- |
+| **Echo** | A human-readable message recorded on-chain |
+| **Wall** | The permanent communication identity of an Ethereum address |
+| **Echo Collection** | The default Executor for Echoes created by the Wall owner |
+| **Inbox Collection** | The default Executor for Echoes received from other addresses |
+| **Custom Executor** | Optional custom contract logic callable by either Echo path |
+
+```mermaid
+flowchart TD
+    S["Sender: EOA or smart contract"] --> E["Echoer protocol"]
+    E --> W["Deterministic Wall"]
+    W --> H["Permanent Echo history"]
+    W --> O["echo: owner Echoes"]
+    W --> I["echoIn: incoming Echoes"]
+    O --> EC["Default: Echo Collection"]
+    I --> IC["Default: Inbox Collection"]
+    O --> C["Optional custom Executor"]
+    I --> C
+```
+
+<br>
+
+## Public by default
 
 Walls are open by default.
-
 Anyone can send an Echo to another address unless the owner of that Wall defines different rules.
 
-Echoer allows open communication while introducing native anti-spam limitations:
+Echoer keeps communication open while introducing native anti-spam limits:
+- Senders establish a basic identity by choosing a short, human-readable name.
+- A sender creates an initial Echo to introduce themselves.
+- Each address can send only one Echo per day to another address.
+- Large-scale message creation within a single transaction is restricted.
 
--  Senders establish a basic identity by choosing a short human-readable name. 
--  A sender creates an initial Echo to introduce themselves. 
--  Messaging is rate-limited. 
--  Large-scale message creation in a single transaction is restricted. 
+> **The goal is not to prevent public communication. It is to make meaningful communication possible without enabling unlimited abuse.**
 
-The goal is not to prevent public communication, but to make meaningful communication possible without allowing unlimited abuse.
+<br>
 
----
+## Beyond transaction data
 
-# Beyond Transaction Data
+Ethereum transactions can already contain arbitrary data, and some explorers allow users to attach human-readable messages through a transaction's data field.
+That data, however, remains metadata attached to an individual transaction. It does not create a persistent communication layer for an address.
 
-Ethereum transactions can already contain arbitrary data. Some explorers allow users to attach human-readable messages by storing text inside the transaction data field.
+Sending data directly to a smart contract also depends on the destination contract. The contract must explicitly support receiving and interpreting that data; otherwise, the message has no defined meaning and the transaction may fail.
+Echoer introduces a dedicated communication layer in which every address—including smart contracts—has a permanent Wall.
 
-However, this communication is only metadata attached to a transaction. It does not create a persistent communication layer for an address.
+> **Unlike Input Data Messages, which are attached to individual transactions, Echoes are emitted on the destination address’s Wall. This gives every address—including smart contracts—a dedicated public space where messages can be published about it, even when the contract itself was never designed to receive or interpret messages.**
 
-Sending data directly to a smart contract also depends on the destination contract. The contract must explicitly support receiving and handling that data. Otherwise, the message has no defined meaning or may fail.
+<br>
 
-Echoer introduces a dedicated communication layer where every address, including smart contracts, has a permanent Wall.
-
-Messages are sent to the identity of an address, not to a specific function or implementation of a contract.
-
-This allows communication with contracts that were not originally designed to receive messages, while keeping communication history separate from the contract’s internal logic.
-
----
-
-# Immutable Walls, Programmable Execution
+## Immutable Walls, programmable execution
 
 The Wall itself is immutable.
 
-The relationship between an address and its Wall, along with the history of Echoes, cannot be changed or rewritten.
+The relationship between an address and its Wall is permanent, and its Echo history cannot be changed or rewritten. The behavior triggered by new Echoes, however, is programmable.
 
-However, the behavior triggered by Echoes is programmable.
+Each Wall can use execution contracts that react when an Echo is created. These **Executors** define what happens around an Echo while preserving the Wall as a permanent and stable identity layer.
 
-Each Wall can have execution contracts that react to Echoes. These Executors define what happens when an Echo is created while keeping the Wall itself as a permanent and stable identity layer.
+There are two main execution paths. Each has a default collection Executor and can also call a custom Executor.
 
-There are two main execution paths:
-
-### EchoExecutor
-
+### `echo` — owner Echoes
 Handles Echoes created by the Wall owner on their own Wall.
+Its default Executor is **Echo Collection**. The `echo` path can also call a custom Executor for additional contract behavior.
 
-### EchoInExecutor
+### `echoIn` — incoming Echoes
+Handles Echoes sent to the Wall by other addresses.
+Its default Executor is **Inbox Collection**. The `echoIn` path can also call a custom Executor for additional contract behavior.
 
-Handles Echoes sent by other addresses to that Wall.
-
-Executors are programmable and can be replaced or customized according to the needs of each Wall.
-
-The default implementation for incoming Echoes is **Inbox Collection**, a collection contract that can represent received Echoes as programmable digital assets.
-
-This default implementation is only one possible behavior. A Wall owner or application can create a different executor with completely different logic.
+#### Custom Executors extend what happens when an Echo is created. They can introduce entirely different contract logic without changing the permanent Wall identity or rewriting its existing Echo history.
 
 A programmable Wall can become much more than a message surface. It can power:
 
--  vaults, 
--  membership systems, 
--  rewards, 
--  auctions, 
--  collections, 
--  financial logic, 
--  or any custom smart contract behavior. 
+- Vaults
+- Membership systems
+- Rewards
+- Auctions
+- Collections
+- Financial logic
+- Any other custom smart contract behavior
 
----
+<br>
 
-# Echoes, Collections, and NFTs
+## Echoes, collections, and NFTs
 
 Echoes are the fundamental primitive of Echoer.
 
-NFTs are one possible use case built on top of Echoes, not the definition of the protocol.
+NFTs are one possible application built on top of Echoes; they do not define the protocol.
 
-The default **Inbox Collection** implementation demonstrates how incoming Echoes can become programmable digital assets.
-
-The collection layer is not limited to static metadata. It can be customized and extended for different purposes.
+The default **Echo Collection** and **Inbox Collection** implementations demonstrate how owner-created and incoming Echoes can become programmable digital assets. The collection layer is not limited to static metadata, and either Echo path can also call custom Executor logic for different purposes.
 
 An Echo-based asset can represent:
 
--  a permanent message, 
--  a collectible, 
--  an access key, 
--  a membership object, 
--  a financial position, 
--  or any other programmable asset defined by its contract. 
+- A permanent message
+- A collectible
+- An access key
+- A membership object
+- A financial position
+- Any other programmable asset defined by its contract
 
-The same Echo can have different meanings depending on the Executor logic attached to it.
+The same Echo can carry different meaning depending on the Executor logic attached to its Wall.
 
----
+<br>
 
-# Human-readable on-chain history
+## Human-readable on-chain history
 
-Ethereum addresses are powerful, but difficult for humans to understand.
+Ethereum addresses are powerful, but their 42-character hexadecimal format is difficult for people to recognize and remember.
 
-Echoer adds a human-readable layer around addresses:
+Echoer adds a human-readable layer around them through:
+- Permanent names
+- Introduction Echoes
+- Public messages
+- Permanent history
+- Compact fallback identifiers
 
--  short names, 
--  introduction Echoes, 
--  public messages, 
--  permanent history. 
+Each address can claim a name of **up to 18 characters**. Once claimed, the name is permanently bound to that address—it **`cannot be transferred, sold, or reassigned`**. This keeps names as identities rather than tradable assets, preventing a secondary market and ownership disputes around name transfers.
+Claimed names are case-insensitive, so Alice and alice represent the same name.
 
-An 18-character naming system helps people reference and discover addresses more naturally.
+If an address has not claimed a name, Echoer represents its 42-character hexadecimal address with **a compact 27-character Base64URL** identifier. Unlike claimed names, Base64URL identifiers are case-sensitive, so uppercase and lowercase letters must be preserved exactly.
 
-The goal is not to replace Ethereum addresses, but to make their activity understandable for humans.
+> The goal is not to replace Ethereum addresses, but to give every address a permanent identity that is easier for humans to recognize, reference, and discover.
 
----
+<br>
 
-# A protocol, not a social network
+## A protocol, not a social network
 
 Echoer is not a social media platform.
 
-It is a neutral on-chain communication primitive that wallets, explorers, and applications can build upon.
+It is a neutral, on-chain communication primitive that wallets, explorers, and applications can build upon.
 
 Every Ethereum address already exists.
 
-Echoer gives every address a permanent voice.
+**Echoer gives every address a permanent voice.**
+.
+
+<br>
+
+## Event structure
+
+Echoer emits events at both the protocol and Wall levels. Protocol-level events provide a concise, searchable preview, while the sender’s Wall emits the complete message.
+
+In the examples below, `Alice` and `Bob` represent either claimed names or fallback Base64URL identifiers.
+
+### `echo`
+
+When Alice publishes an Echo on her own Wall:
+
+| Event source | Emitted text |
+| --- | --- |
+| **Echoer** | `Alice: <message preview>` |
+| **Alice’s Wall** | `<full message>` |
+
+### `echoTo`
+
+When Alice sends an Echo to Bob:
+
+| Event source | Emitted text |
+| --- | --- |
+| **Echoer** | `Alice -> Bob: <message preview>` |
+| **Alice’s Wall** | `-> Bob: <full message>` |
+| **Bob’s Wall** | `Alice: <message preview>` |
+
+This structure makes Echoes discoverable through the main Echoer contract while preserving the complete message in the sender’s permanent Wall history.
 
 
-## Compilation
+## Echo IDs and references
+
+Every Echo receives an `echoId`: a sequential message number assigned by the sender’s Wall.
+
+The counter is scoped to each address, so the `echoId` must be combined with the sender’s permanent name or fallback identifier to form a unique reference, such as `Alice#10`.
+
+`Alice#10` refers to Alice’s tenth Echo. This creates a short, permanent reference that can be included in later Echoes to mention, cite, or reply to that specific message.
+
+<br>
+
+---
+
+<br>
+
+# Compilation
 
 Use these settings for the main Echoer contracts:
 
@@ -159,9 +220,8 @@ The contracts import OpenZeppelin Contracts. Supply and pin the compatible depen
 
 The contracts use fixed addresses for dependencies deployed on **Ethereum mainnet**. Test using an **Ethereum mainnet fork** so those dependencies are available at their expected addresses.
 
----
 
-##Immutability and Versioning
+## Immutability and Versioning
 
 Echoer contracts are designed to be immutable.
 
