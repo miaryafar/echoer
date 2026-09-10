@@ -61,7 +61,7 @@ That data, however, remains metadata attached to an individual transaction. It d
 Sending data directly to a smart contract also depends on the destination contract. The contract must explicitly support receiving and interpreting that data; otherwise, the message has no defined meaning and the transaction may fail.
 Echoer introduces a dedicated communication layer in which every address—including smart contracts—has a permanent Wall.
 
-> **Unlike Input Data Messages, which are attached to individual transactions, Echoes are emitted on the destination address’s Wall. This gives every address—including smart contracts—a dedicated public space where messages can be published about it, even when the contract itself was never designed to receive or interpret messages.**
+Like an **`Input Data Message (IDM)`**, every Echo begins with an individual Ethereum transaction. What Echoer adds is structure: echoTo emits events through the Echoer protocol and the Walls of both the sender and the destination, turning isolated transaction data into a permanent, address-centered communication history. This gives every address—including smart contracts—a public Wall where others can leave messages without requiring the destination contract to support or interpret them.
 
 <br>
 
