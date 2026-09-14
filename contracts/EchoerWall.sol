@@ -1006,7 +1006,7 @@ contract EchoerWall is  IEchoerWall{
             _messageWithName(from, fromInfo, message)
         );
         if (msg.value != 0) {
-            emit ValueReceived(fromWall, from, msg.value);
+            emit ValueReceived(from, msg.value);
         }
 
         if (_shouldRouteToCollection(message, false, config.flags)) {
@@ -1044,7 +1044,7 @@ contract EchoerWall is  IEchoerWall{
             _messageWithName(from, fromInfo, message)
         );
         if (msg.value != 0) {
-            emit ValueReceived(fromWall, from, msg.value);
+            emit ValueReceived(from, msg.value);
         }
 
         if (

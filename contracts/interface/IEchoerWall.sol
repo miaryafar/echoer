@@ -81,7 +81,6 @@ interface IEchoerWall {
     /// @notice Native value was attached to an incoming Echo.
     /// @dev Emitted even when the value is forwarded to the Inbox executor.
     event ValueReceived(
-        address indexed fromWall,
         address indexed from,
         uint256 amount
     );

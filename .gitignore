@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build/output
+build/
+dist/
+artifacts/
+.cache/
+.tmp/
+.deps/
+temp/
+
+.git/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Remix generated/cache files
+.cache/
+public/build/
+
+# Optional: ignore Remix config ONLY if you really don't want it committed
+# remix.config.js
+# remix.config.ts
+# remix.config.mjs
+remix.config.json
