@@ -897,7 +897,9 @@ contract EchoCollection is
             _startsWith(uri, bytes("data:application/json;base64,"))
                 || _startsWith(uri, bytes("ipfs://"))
                 || _startsWith(uri, bytes("ar://"))
-                || _startsWith(uri, bytes("btfs://"));
+                || _startsWith(uri, bytes("btfs://"))
+                || _startsWith(uri, bytes("ipns://"))
+                || _startsWith(uri, bytes("bzz://"));
     }
 
     function _startsWith(
