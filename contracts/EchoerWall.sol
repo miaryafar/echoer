@@ -134,11 +134,12 @@ contract EchoerWall is  IEchoerWall{
         uint8 flags;
     }
 
-    /// @dev One slot. Epoch changes invalidate an entire access list without
+    /// @dev One slot. An epoch change invalidates an entire access list without
     /// iterating over addresses; counts make wallStatus() deterministic.
+    /// The allow and reject lists always move together, so one epoch covers
+    /// both. The effective value is `epoch + 1` — see _epoch().
     struct AccessConfig {
-        uint64 allowEpoch;
-        uint64 rejectEpoch;
+        uint64 epoch;
         uint64 allowedCount;
         uint64 rejectedCount;
     }
@@ -199,17 +200,6 @@ contract EchoerWall is  IEchoerWall{
 
         if (!authorized) revert("Only owner");
         _;
-    }
-
-    /// @notice Called once when this Wall is created to set its owner.
-    /// Only callable by Echoer Core. This is called automatically during Wall creation.
-    function initialize(address wallOwner) external onlyEchoerCore {
-        //if (owner != address(0)) revert("Already initialized");
-        //if (wallOwner == address(0)) revert("Invalid address");
-//
-        //owner = wallOwner;
-        _accessConfig.allowEpoch = 1;
-        _accessConfig.rejectEpoch = 1;
     }
 
     /// @notice Get a display name for this Wall: "Wall of [owner's name]".
@@ -447,6 +437,7 @@ contract EchoerWall is  IEchoerWall{
     /// normal mode.
     function setAllow(address[] calldata senders) external onlyOwner {
         AccessConfig storage access = _accessConfig;
+        uint64 epoch = _epoch();
         bool allowlistMode =
             _effectiveEchoInConfig().flags & INBOX_FLAG_ALLOWLIST_MODE != 0;
 
@@ -456,14 +447,14 @@ contract EchoerWall is  IEchoerWall{
 
             uint128 senderAccess = _senderAccess[sender];
             if (allowlistMode) {
-                if (uint64(senderAccess) != access.allowEpoch) {
+                if (uint64(senderAccess) != epoch) {
                     _senderAccess[sender] =
                         (senderAccess & ~uint128(type(uint64).max)) |
-                        uint128(access.allowEpoch);
+                        uint128(epoch);
                     ++access.allowedCount;
                     emit SenderAccessChange(sender, true);
                 }
-            } else if (uint64(senderAccess >> 64) == access.rejectEpoch) {
+            } else if (uint64(senderAccess >> 64) == epoch) {
                 _senderAccess[sender] =
                     senderAccess & uint128(type(uint64).max);
                 --access.rejectedCount;
@@ -480,6 +471,7 @@ contract EchoerWall is  IEchoerWall{
     /// allowlist mode.
     function setReject(address[] calldata senders) external onlyOwner {
         AccessConfig storage access = _accessConfig;
+        uint64 epoch = _epoch();
         bool allowlistMode =
             _effectiveEchoInConfig().flags & INBOX_FLAG_ALLOWLIST_MODE != 0;
 
@@ -489,16 +481,16 @@ contract EchoerWall is  IEchoerWall{
 
             uint128 senderAccess = _senderAccess[sender];
             if (allowlistMode) {
-                if (uint64(senderAccess) == access.allowEpoch) {
+                if (uint64(senderAccess) == epoch) {
                     _senderAccess[sender] =
                         senderAccess & ~uint128(type(uint64).max);
                     --access.allowedCount;
                     emit SenderAccessChange(sender, false);
                 }
-            } else if (uint64(senderAccess >> 64) != access.rejectEpoch) {
+            } else if (uint64(senderAccess >> 64) != epoch) {
                 _senderAccess[sender] =
                     (senderAccess & uint128(type(uint64).max)) |
-                    (uint128(access.rejectEpoch) << 64);
+                    (uint128(epoch) << 64);
                 ++access.rejectedCount;
                 emit SenderAccessChange(sender, false);
             }
@@ -1140,18 +1132,31 @@ contract EchoerWall is  IEchoerWall{
         }
     }
 
+    /// @dev The effective epoch is the stored one plus one, so a freshly cloned
+    /// Wall needs no initializer: its zeroed storage reads as epoch 1, which no
+    /// entry in `_senderAccess` can match. An unlisted sender is therefore
+    /// admitted in normal mode and refused in allowlist mode, and a stored zero
+    /// always means "never listed". Never returns zero, so the values written
+    /// into `_senderAccess` stay distinguishable from that untouched state.
+    function _epoch() private view returns (uint64) {
+        unchecked {
+            return _accessConfig.epoch + 1;
+        }
+    }
+
     /// @dev Invalidates both lists in constant time. Presets use this so an old
     /// address rule can never survive a new Open, Closed or Default state.
     function _resetAccessRules() private {
         AccessConfig storage access = _accessConfig;
-        if (
-            access.allowEpoch == type(uint64).max ||
-            access.rejectEpoch == type(uint64).max
-        ) revert("Access epoch exhausted");
+
+        // Stops one short of the maximum: the effective epoch is stored + 1,
+        // and letting the stored value reach the maximum would wrap it to zero.
+        if (access.epoch >= type(uint64).max - 1) {
+            revert("Access epoch exhausted");
+        }
 
         unchecked {
-            ++access.allowEpoch;
-            ++access.rejectEpoch;
+            ++access.epoch;
         }
         access.allowedCount = 0;
         access.rejectedCount = 0;
@@ -1161,14 +1166,14 @@ contract EchoerWall is  IEchoerWall{
         address sender,
         uint8 flags
     ) private view returns (bool) {
-        AccessConfig memory access = _accessConfig;
+        uint64 epoch = _epoch();
         uint128 senderAccess = _senderAccess[sender];
 
         if (flags & INBOX_FLAG_ALLOWLIST_MODE != 0) {
-            return uint64(senderAccess) == access.allowEpoch;
+            return uint64(senderAccess) == epoch;
         }
 
-        return uint64(senderAccess >> 64) != access.rejectEpoch;
+        return uint64(senderAccess >> 64) != epoch;
     }
 
     function _shouldRouteToCollection(

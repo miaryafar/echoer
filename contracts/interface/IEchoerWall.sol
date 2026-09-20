@@ -105,9 +105,6 @@ interface IEchoerWall {
     /// @notice Returns the address represented by this Wall.
     function owner() external view returns (address);
 
-    /// @notice Initializes a freshly created Wall for `wallOwner`.
-    /// @dev Callable only by Echoer Core and only once.
-    function initialize(address wallOwner) external;
 
     /// @return The display name `Wall of <owner name>`.
     function name() external view returns (string memory);
