@@ -8,13 +8,16 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import {EchoerInfoLib} from "./../library/EchoerInfoLib.sol";
+import "./../library/AddressSeedClones.sol";
+
 import {IEchoerDataStore} from "./../interface/IEchoerDataStore.sol";
 import {IOwnable} from "./../interface/IOwnable.sol";
 import {IEchoer} from "./../interface/IEchoer.sol";
 import {IEchoerWall} from "./../interface/IEchoerWall.sol";
 import {IInboxCollectionExecutor} from "./../interface/IInboxCollectionExecutor.sol";
 import {IInboxCollectionExecutorRenderer} from "./../interface/IInboxCollectionExecutorRenderer.sol";
-import {EchoerInfoLib} from "./../library/EchoerInfoLib.sol";
+
 import {EchoerInboxRenderer} from "./InboxCollectionRenderer.sol";
 
 /*
@@ -165,8 +168,6 @@ contract InboxCollection is
     /// @dev Per-collection renderer override. Zero means use the default.
     IInboxCollectionExecutorRenderer private _rendererOverride;
 
-    /// @notice Wall allowed to mint for this collection.
-    address public wall;
 
     /// @dev One packed message-reference/value slot per token ID.
     mapping(uint256 tokenId => InboxEcho data) private _inboxEchoes;
@@ -222,21 +223,15 @@ contract InboxCollection is
             revert("Invalid renderer");
         }
         _defaultRenderer = IInboxCollectionExecutorRenderer(_renderer);
-
-        // Lock the implementation while leaving every clone's Wall slot zero.
-        wall = address(1);
     }
 
-    /// @notice Binds this collection to its Wall once.
-    /// @dev The first caller becomes the Wall; later calls revert.
-    function initialize() external {
-        if (wall != address(0)) revert("Already initialized");
-        wall = msg.sender;
+    function wall() public view returns (address) {
+        return AddressSeedClones.seedOf(address(this));
     }
 
     /// @dev Allows calls only from the bound Wall.
     modifier onlyWall() {
-        if (msg.sender != wall) revert("Only Wall");
+        if (msg.sender != wall()) revert("Only Wall");
         _;
     }
 
@@ -887,7 +882,7 @@ contract InboxCollection is
     }
 
     function _wallOwner() private view returns (address) {
-        return IEchoerWall(wall).owner();
+        return IEchoerWall(wall()).owner();
     }
 
     function _activeRenderer()
@@ -994,6 +989,6 @@ contract InboxCollection is
 
     /// @notice Returns the Echoer Core connected through this collection's Wall.
     function echoerCore() public view returns (address) {
-        return IEchoerWall(wall).echoerCore();
+        return IEchoerWall(wall()).echoerCore();
     }
 }

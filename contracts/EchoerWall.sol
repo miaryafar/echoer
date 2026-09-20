@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.36;
 
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
+import "./library/EchoerInfoLib.sol";
+import "./library/AddressSeedClones.sol";
 
 import "./interface/IEchoer.sol";
 import "./interface/IEchoerWall.sol";
@@ -12,7 +13,6 @@ import "./interface/IOwnable.sol";
 import "./interface/IInboxCollectionExecutor.sol";
 import "./interface/IEchoCollectionExecutor.sol";
 import "./interface/ICollectionInitializer.sol";
-import "./library/EchoerInfoLib.sol";
 
 
 /*
@@ -40,7 +40,6 @@ import "./library/EchoerInfoLib.sol";
 /// routes messages here and verifies the owner. Collection callbacks are
 /// synchronous; a callback revert will revert the entire wall operation.
 contract EchoerWall is  IEchoerWall{
-    using Clones for address;
     using Strings for uint256;
 
     address public immutable echoerCore;
@@ -49,16 +48,10 @@ contract EchoerWall is  IEchoerWall{
     address internal immutable _echoCollectionImplementation;
     address internal immutable _inboxCollectionImplementation;
 
-    /// @notice Who owns this Wall. The owner can set the rules for incoming messages.
-    address public owner;
 
     uint256 internal constant MAX_DATA_STORE_STRING_BYTES = 24_575;
     uint16 internal constant DEFAULT_MINIMUM_COOLDOWN_HOURS = 22;
 
-    bytes32 internal constant ECHO_COLLECTION_SALT =
-        keccak256("ECHOER_ECHO_COLLECTION_V1");
-    bytes32 internal constant INBOX_COLLECTION_SALT =
-        keccak256("ECHOER_INBOX_COLLECTION_V1");
 
     // Shared collection-routing flags. Used by both Echo and Inbox config
     // to decide which messages reach the collection executor.
@@ -182,7 +175,9 @@ contract EchoerWall is  IEchoerWall{
         _inboxCollectionImplementation = inboxCollectionImplementation_;
     }
 
-   
+    function owner() public view returns (address){
+        return AddressSeedClones.seedOf(address(this));
+    }
 
     modifier onlyEchoerCore() {
         if (msg.sender != echoerCore) revert("Only Echoer Core");
@@ -190,7 +185,7 @@ contract EchoerWall is  IEchoerWall{
     }
 
     modifier onlyOwner() {
-        address currentOwner = owner;
+        address currentOwner = owner();
         bool authorized = msg.sender == currentOwner;
 
         // If the wall owner is a contract, accept its owner as well.
@@ -209,10 +204,10 @@ contract EchoerWall is  IEchoerWall{
     /// @notice Called once when this Wall is created to set its owner.
     /// Only callable by Echoer Core. This is called automatically during Wall creation.
     function initialize(address wallOwner) external onlyEchoerCore {
-        if (owner != address(0)) revert("Already initialized");
-        if (wallOwner == address(0)) revert("Invalid address");
-
-        owner = wallOwner;
+        //if (owner != address(0)) revert("Already initialized");
+        //if (wallOwner == address(0)) revert("Invalid address");
+//
+        //owner = wallOwner;
         _accessConfig.allowEpoch = 1;
         _accessConfig.rejectEpoch = 1;
     }
@@ -224,7 +219,7 @@ contract EchoerWall is  IEchoerWall{
 
     /// @notice Get the owner's claimed Echoer name, or their Base64 address if unnamed.
     function ownerName() public view returns (string memory) {
-        return IEchoer(echoerCore).nameOf(owner);
+        return IEchoer(echoerCore).nameOf(owner());
     }
 
     // ---------------------------------------------------------------------
@@ -785,7 +780,7 @@ contract EchoerWall is  IEchoerWall{
     function echo(string calldata message) external {
         IEchoer(echoerCore).onEchoFromWall(
             msg.sender,
-            owner,
+            owner(),
             message
         );
     }
@@ -797,7 +792,7 @@ contract EchoerWall is  IEchoerWall{
     ) external payable {
         IEchoer(echoerCore).onEchoWithDataFromWall{value: msg.value}(
             msg.sender,
-            owner,
+            owner(),
             message,
             data
         );
@@ -822,7 +817,7 @@ contract EchoerWall is  IEchoerWall{
         // follows the real execution order: Core, Wall, then executor.
         try IEchoer(echoerCore).canEchoTo(
             from,
-            owner,
+            owner(),
             value,
             message,
             data
@@ -890,10 +885,10 @@ contract EchoerWall is  IEchoerWall{
 
         // Core has already validated the self-Echo. The Wall only needs to
         // resolve the next eID and run its selected Echo executor preflight.
-        if (from == owner) {
+        if (from == owner()) {
             (uint32 eID, ) = EchoerInfoLib.echoCounts(fromInfo);
             return _checkEchoExecutor(
-                owner,
+                owner(),
                 eID,
                 message,
                 data
@@ -915,7 +910,7 @@ contract EchoerWall is  IEchoerWall{
         
 
         return _checkInboxExecutor(
-            owner,
+            owner(),
             from,
             fromInfo,
             value,
@@ -1094,8 +1089,9 @@ contract EchoerWall is  IEchoerWall{
     {
         EchoConfig storage config = _echoConfig;
 
-        collection = _echoCollectionImplementation
-            .predictDeterministicAddress(ECHO_COLLECTION_SALT, address(this));
+        collection = AddressSeedClones.predictDeterministicAddress(
+                            _echoCollectionImplementation, address(this), address(this)
+                        );
 
         // Effects are recorded before initialization. A failure reverts the
         // storage write and clone deployment together.
@@ -1103,14 +1099,7 @@ contract EchoerWall is  IEchoerWall{
         config.flags |= FLAG_ECHO_COLLECTION_SET;
 
         if (collection.code.length == 0) {
-            collection = _echoCollectionImplementation.cloneDeterministic(
-                ECHO_COLLECTION_SALT
-            );
-            try ICollectionInitializer(collection).initialize() {} catch (
-                bytes memory revertData
-            ) {
-                _revertExecutorFailure(false, true, revertData);
-            }
+            AddressSeedClones.cloneDeterministic(_echoCollectionImplementation, address(this));
         }
 
         emit EchoCollectionChange(collection);
@@ -1122,21 +1111,16 @@ contract EchoerWall is  IEchoerWall{
     {
         EchoInConfig storage config = _echoInConfig;
 
-        collection = _inboxCollectionImplementation
-            .predictDeterministicAddress(INBOX_COLLECTION_SALT, address(this));
+        collection = AddressSeedClones.predictDeterministicAddress(
+                            _inboxCollectionImplementation, address(this), address(this)
+                        );
 
         config.collection = collection;
         config.flags |= FLAG_INBOX_COLLECTION_SET;
 
         if (collection.code.length == 0) {
-            collection = _inboxCollectionImplementation.cloneDeterministic(
-                INBOX_COLLECTION_SALT
-            );
-            try ICollectionInitializer(collection).initialize() {} catch (
-                bytes memory revertData
-            ) {
-                _revertExecutorFailure(true, true, revertData);
-            }
+            AddressSeedClones.cloneDeterministic(_inboxCollectionImplementation, address(this));
+         
         }
 
         emit InboxCollectionChange(collection);
@@ -1455,10 +1439,9 @@ contract EchoerWall is  IEchoerWall{
     ) private view returns (bool) {
         return
             collection ==
-            _echoCollectionImplementation.predictDeterministicAddress(
-                ECHO_COLLECTION_SALT,
-                address(this)
-            );
+            AddressSeedClones.predictDeterministicAddress(
+                    _echoCollectionImplementation, address(this), address(this)
+                );
     }
 
     function _isDefaultInboxCollection(
@@ -1466,10 +1449,9 @@ contract EchoerWall is  IEchoerWall{
     ) private view returns (bool) {
         return
             collection ==
-            _inboxCollectionImplementation.predictDeterministicAddress(
-                INBOX_COLLECTION_SALT,
-                address(this)
-            );
+            AddressSeedClones.predictDeterministicAddress(
+                    _inboxCollectionImplementation, address(this), address(this)
+                );
     }
 
     /// @dev Runs only after Core validation has passed. The return order is

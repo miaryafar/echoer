@@ -9,6 +9,7 @@ artifacts/
 .tmp/
 .deps/
 temp/
+.states
 
 .git/
 

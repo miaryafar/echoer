@@ -14,9 +14,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.36;
 
-import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+
+import {EchoerInfo, EchoerInfoLib} from "./library/EchoerInfoLib.sol";
+import "./library/AddressSeedClones.sol";
 
 
 import {IEchoer} from "./interface/IEchoer.sol";
@@ -24,7 +26,6 @@ import {IEchoerWall} from "./interface/IEchoerWall.sol";
 import "./interface/IGlobalRegistrar.sol";
 import "./interface/IOwnable.sol";
 import "./interface/ITornadoCashEchoer.sol";
-import {EchoerInfo, EchoerInfoLib} from "./library/EchoerInfoLib.sol";
 
 import {EchoerWall} from "./EchoerWall.sol";
 
@@ -109,7 +110,6 @@ contract Echoer is IEchoer {
         this.echo(message);
     }
 
-    using Clones for address;
     using EchoerInfoLib for EchoerInfo;
 
     /// @dev How long a name reservation lasts: 720 hours (30 days).
@@ -511,8 +511,9 @@ contract Echoer is IEchoer {
         address owner
     ) external view override returns (address wall) {
         return
-            _wallImplementation.predictDeterministicAddress(
-                _wallSalt(owner),
+            AddressSeedClones.predictDeterministicAddress(
+                _wallImplementation,
+                owner,
                 address(this)
             );
     }
@@ -523,10 +524,11 @@ contract Echoer is IEchoer {
         address owner = _resolveName(name);
         if (owner == address(0)) return address(0);
 
-        return _wallImplementation.predictDeterministicAddress(
-            _wallSalt(owner),
-            address(this)
-        );
+        return AddressSeedClones.predictDeterministicAddress(
+                    _wallImplementation,
+                    owner,
+                    address(this)
+                );
     }
 
     // ---------------------------------------------------------------------
@@ -1953,27 +1955,23 @@ contract Echoer is IEchoer {
     // ---------------------------------------------------------------------
 
     function _getOrCreateWall(address owner) private returns (address wall) {
-        bytes32 salt = _wallSalt(owner);
         wall = _predictWall(owner);
 
         if (wall.code.length == 0) {
-            wall = _wallImplementation.cloneDeterministic(salt);
-            IEchoerWall(wall).initialize(owner);
+            wall = AddressSeedClones.cloneDeterministic(
+                        _wallImplementation, owner
+                    );
         }
     }
 
     function _predictWall(address owner) private view returns (address wall) {
         return
-            _wallImplementation.predictDeterministicAddress(
-                _wallSalt(owner),
+            AddressSeedClones.predictDeterministicAddress(
+                _wallImplementation,
+                owner,
                 address(this)
             );
     }
-
-    function _wallSalt(address owner) private pure returns (bytes32) {
-        return bytes32(uint256(uint160(owner)));
-    }
-
    
 
     /// @dev Accepts only canonical 27-character unpadded Base64URL.
