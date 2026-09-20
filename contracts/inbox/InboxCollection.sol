@@ -306,14 +306,14 @@ contract InboxCollection is
     /// @notice Returns `Echoer Inbox Collection Of <owner name>`.
     function name() public view override returns (string memory) {
         return string.concat(
-            "Echoer Inbox Collection Of ",
+            "Echoer inbox collection of ",
             _wallOwnerName()
         );
     }
 
     /// @notice Returns `ECHO-IN-<owner name>`.
     function symbol() public view override returns (string memory) {
-        return string.concat("ECHO-IN-", _wallOwnerName());
+        return string.concat("echo-in-", _wallOwnerName());
     }
 
     /// @notice Returns the collection renderer used without a token override.

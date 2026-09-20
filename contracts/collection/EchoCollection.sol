@@ -286,12 +286,12 @@ contract EchoCollection is
 
     /// @notice Returns `Echoer Echo Collection Of <owner name>`.
     function name() public view override returns (string memory) {
-        return string.concat("Echoer Echo Collection Of ", _wallOwnerName());
+        return string.concat("Echoer echo collection of ", _wallOwnerName());
     }
 
     /// @notice Returns `ECHO-<owner name>`.
     function symbol() public view override returns (string memory) {
-        return string.concat("ECHO-", _wallOwnerName());
+        return string.concat("echo-", _wallOwnerName());
     }
 
     /// @notice Returns the collection renderer used without a token override.
